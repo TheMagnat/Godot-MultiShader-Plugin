@@ -1,0 +1,17 @@
+[gd_scene format=3 uid="uid://is5cvmd2vdtq"]
+
+[node name="MultiShaderDock" type="HBoxContainer"]
+offset_right = 178.0
+offset_bottom = 31.0
+
+[node name="CheckBox" type="CheckBox" parent="."]
+layout_mode = 2
+text = "Auto"
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Button" type="Button" parent="."]
+layout_mode = 2
+text = "Bake Shader"

@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://d3povicevk8ah"]
+
+[node name="ExportButton" type="Button"]
+offset_right = 59.0
+offset_bottom = 31.0
+text = "Export"
