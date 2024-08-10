@@ -1,6 +1,6 @@
 class_name MultiShaderBakeProperty extends EditorProperty
 
-const MULTI_SHADER_BAKE_CONTROL_SCENE = preload("res://addons/multishader/Inspector/MultiShaderBakeControl.tscn")
+const MULTI_SHADER_BAKE_CONTROL_SCENE = preload("res://addons/multiShader/Inspector/MultiShaderBakeControl.tscn")
 var multiShaderBakeControl = MULTI_SHADER_BAKE_CONTROL_SCENE.instantiate()
 
 var editedMultiShader = null 

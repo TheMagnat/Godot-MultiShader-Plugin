@@ -1,5 +1,5 @@
 @tool
-@icon("res://addons/multishader/multiShaderIcon.png")
+@icon("res://addons/multiShader/multiShaderIcon.png")
 class_name MultiShaderMaterial extends ShaderMaterial
 
 ## A resource to help you create shader using multiple shaders but without having to
