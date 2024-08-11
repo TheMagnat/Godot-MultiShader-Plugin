@@ -81,6 +81,10 @@ func resetTokenHandlerCache():
 func verifyManagedShaders():
 	_coherentManagedShaders = false
 	
+	# Reset the current mode to recompute it if mode is on auto
+	if mode == -1:
+		_currentMode = -1
+	
 	var tempoHandledManagedShaders: Array[Shader]
 	for index in managedShaders.size():
 		var shaderRef: Shader = managedShaders[index]
@@ -97,8 +101,6 @@ func verifyManagedShaders():
 	
 	_handledManagedShaders = tempoHandledManagedShaders
 	if _handledManagedShaders.is_empty():
-		if mode == -1:
-			_currentMode = -1
 		return
 	
 	# All shaders look valid, connect the changed event on them
@@ -115,10 +117,9 @@ var _shadersData := {}
 func _parseShader(shaderRef: Shader):
 	
 	_shadersData[shaderRef] = {
-		#"code": "",
 		"tokens": [],
-		"vertex": [],
-		"fragment": []
+		"vertex": null,
+		"fragment": null
 	}
 	
 	var toMerge = []
@@ -128,7 +129,7 @@ func _parseShader(shaderRef: Shader):
 	var brace_count = 0
 	
 	# Store the vertex code
-	var vertexCode: String = shaderRef.code
+	var shaderCode: String = shaderRef.code
 	var generatedTokens: Array[Token]
 	
 	# Parameters
@@ -146,30 +147,30 @@ func _parseShader(shaderRef: Shader):
 	var lineEnd: int = -1
 	
 	var skipOne: bool = false
-	for i in vertexCode.length():
+	for i in shaderCode.length():
 		if skipOne:
 			skipOne = false
 			continue
 
-		if not multiLineCommentState and i > 0 and vertexCode[i-1] == "/" and vertexCode[i] == "*":
+		if not multiLineCommentState and i > 0 and shaderCode[i-1] == "/" and shaderCode[i] == "*":
 			multiLineCommentState = true
 			#Note: Here we jump one index to prevent to consider line like /*/ like an end of comment
 			skipOne = true
 		
 		if multiLineCommentState:
 			# Leave the comment state
-			if vertexCode[i-1] == "*" and vertexCode[i] == "/":
+			if shaderCode[i-1] == "*" and shaderCode[i] == "/":
 				multiLineCommentState = false
 			
 			continue
 		
 		#TODO: Start at 1 and ignore the test i > 0
-		if not lineCommentState and i > 0 and vertexCode[i-1] == "/" and vertexCode[i] == "/":
+		if not lineCommentState and i > 0 and shaderCode[i-1] == "/" and shaderCode[i] == "/":
 			lineCommentState = true
 		
 		if lineCommentState:
 			# Leave the comment state
-			if vertexCode[i] == "\n":
+			if shaderCode[i] == "\n":
 				lineCommentState = false
 			
 			continue
@@ -178,25 +179,25 @@ func _parseShader(shaderRef: Shader):
 		
 		# Verify if there is a precompilation directive
 		if inDirective:
-			if vertexCode[i] != "\n":
+			if shaderCode[i] != "\n":
 				# If current char is not '\n', directive is not finished
 				continue
 			
 			# Here the directive ended
 			inDirective = false
 		else:
-			if vertexCode[i] == "#":
+			if shaderCode[i] == "#":
 				# Here we enter a directive
 				inDirective = true
 				continue
 			
-			elif vertexCode[i] not in lineEndChars:
+			elif shaderCode[i] not in lineEndChars:
 				continue
 		
 		# Here the lined / directive ended, handle it normaly
 		lineEnd = i+1
 		
-		var line: String = vertexCode.substr(lineStart, lineEnd - lineStart)
+		var line: String = shaderCode.substr(lineStart, lineEnd - lineStart)
 		line = line.strip_edges()
 		if "shader_type" in line:
 			# Discard shader_type line
@@ -290,7 +291,7 @@ func _mergeShaders():
 		
 		var addedLines: int = 0
 		for shaderRef in _handledManagedShaders:
-			if _shadersData[shaderRef][functionName].childs:
+			if _shadersData[shaderRef][functionName] and _shadersData[shaderRef][functionName].childs:
 				var tokenHandler := TokensHandler.new(self, shaderRef, _shadersData[shaderRef][functionName].childs, shaderMacros, 1)
 				
 				finalFunction += \
