@@ -1,5 +1,8 @@
 class_name TokensHandler
 
+# Keep a reference to the MultiShaderMaterial to use the cache variables
+var multiShaderMaterial: MultiShaderMaterial
+
 var originalShader: Shader
 
 var shaderMacros: Dictionary
@@ -7,30 +10,16 @@ var shaderMacros: Dictionary
 var tokenList: Array[Token]
 var depthLevel: int
 
-# This store for each shaders the encountered conflicts
-static var conflictsPerShader := {}
-
-### Id handling section
-
-# Token handler id, refer to the local scope id, will be used if conflicts are found
-static var idPerShader := {}
-
-#const idCharacters: String = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-#const idSize: int = 6
-
-static var count: int = 0
-static func resetStatics():
-	count = 0
-	conflictsPerShader.clear()
-
-func _initializeShaderStatics():
-	if originalShader not in conflictsPerShader:
-		conflictsPerShader[originalShader] = PackedStringArray()
-		idPerShader[originalShader] = "%d" % count
+func _initializeShaderCache():
+	if originalShader not in multiShaderMaterial._conflictsPerShader:
+		multiShaderMaterial._conflictsPerShader[originalShader] = PackedStringArray()
+		multiShaderMaterial._idPerShader[originalShader] = "%d" % multiShaderMaterial._count
 		
-		count += 1
+		multiShaderMaterial._count += 1
 
-func _init(originalShaderParam: Shader, tokenListParam: Array[Token], shaderMacrosParam: Dictionary, depthLevelParam: int = 0) -> void:
+func _init(multiShaderMaterialParam: MultiShaderMaterial, originalShaderParam: Shader, tokenListParam: Array[Token], shaderMacrosParam: Dictionary, depthLevelParam: int = 0) -> void:
+	multiShaderMaterial = multiShaderMaterialParam
+	
 	originalShader = originalShaderParam
 	
 	shaderMacros = shaderMacrosParam
@@ -38,7 +27,7 @@ func _init(originalShaderParam: Shader, tokenListParam: Array[Token], shaderMacr
 	tokenList = tokenListParam
 	depthLevel = depthLevelParam
 	
-	_initializeShaderStatics()
+	_initializeShaderCache()
 
 func getString(token: Token, depthLevel: int, localScope: Array[Token], globalScope: Array[Token]) -> String:
 	"""
@@ -58,7 +47,7 @@ func getString(token: Token, depthLevel: int, localScope: Array[Token], globalSc
 				return ""
 			
 			# Here we have a conflict, store it
-			conflictsPerShader[originalShader].push_back(token.tokenName)
+			multiShaderMaterial._conflictsPerShader[originalShader].push_back(token.tokenName)
 			
 			# TODO: Maybe update the token
 	
@@ -70,7 +59,7 @@ func getString(token: Token, depthLevel: int, localScope: Array[Token], globalSc
 	
 	# Function logic
 	if token.tokenType == Token.TokenTypes.FUNCTION:
-		var childsTokensHandler := TokensHandler.new(originalShader, token.childs, shaderMacros, depthLevel + 1)
+		var childsTokensHandler := TokensHandler.new(multiShaderMaterial, originalShader, token.childs, shaderMacros, depthLevel + 1)
 		return res + \
 			childsTokensHandler.tokenListToString() + \
 			"\t".repeat(depthLevel) + "}\n"
@@ -103,8 +92,8 @@ func tokenListToString(tokenToWatch: Array[Token] = []) -> String:
 	var res: String = _tokenListToString(tokenList, depthLevel, tokenToWatch, [])
 	
 	# Handle conflicts here
-	for conflict in conflictsPerShader[originalShader]:
+	for conflict in multiShaderMaterial._conflictsPerShader[originalShader]:
 		# Here there is conflicts, rename the encountered conflicts
-		res = res.replace(conflict, "%s_%s" % [conflict, idPerShader[originalShader]])
+		res = res.replace(conflict, "%s_%s" % [conflict, multiShaderMaterial._idPerShader[originalShader]])
 	
 	return res

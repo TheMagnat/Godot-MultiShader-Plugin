@@ -52,13 +52,27 @@ var _handledManagedShaders: Array[Shader]
 ## Shader that the MultiShaderMaterial will try to merge together when [method bakeMainShader] is called.
 @export var managedShaders: Array[Shader]:
 	set(value):
-		#if not Engine.is_editor_hint(): return
+		if not Engine.is_editor_hint(): return
 		managedShaders = value
 		verifyManagedShaders()
 
 ## Contain the defined shaders macro. If edited, [method bakeMainShader] must be called
 ## to regenerate the shader with the new macro values.
 @export var shaderMacros: Dictionary
+
+
+### Variable used by the TokensHandler as a cache to keep track of conflicts
+# Keep count of the number of shaders managed by the TokensHandler (to assign them an id)
+var _count: int = 0
+# This store for each shaders the encountered conflicts
+var _conflictsPerShader := {}
+# Token handler id, refer to the local scope id, will be used if conflicts are found
+var _idPerShader := {}
+
+func resetTokenHandlerCache():
+	_count = 0
+	_conflictsPerShader = {}
+	_idPerShader = {}
 
 ## Verify and set the computation variables for the baking. It must be called before
 ## calling [method bakeMainShader].
@@ -98,7 +112,6 @@ func verifyManagedShaders():
 		bakeMainShader()
 
 var _shadersData := {}
-
 func _parseShader(shaderRef: Shader):
 	
 	_shadersData[shaderRef] = {
@@ -258,7 +271,7 @@ func _mergeShaders():
 	# Merge "normal" code
 	for shaderRef in _handledManagedShaders:
 		if _shadersData[shaderRef].tokens:
-			var tokenHandler := TokensHandler.new(shaderRef, _shadersData[shaderRef].tokens, shaderMacros)
+			var tokenHandler := TokensHandler.new(self, shaderRef, _shadersData[shaderRef].tokens, shaderMacros)
 			
 			# Write to the shader
 			finalShader += \
@@ -278,7 +291,7 @@ func _mergeShaders():
 		var addedLines: int = 0
 		for shaderRef in _handledManagedShaders:
 			if _shadersData[shaderRef][functionName].childs:
-				var tokenHandler := TokensHandler.new(shaderRef, _shadersData[shaderRef][functionName].childs, shaderMacros, 1)
+				var tokenHandler := TokensHandler.new(self, shaderRef, _shadersData[shaderRef][functionName].childs, shaderMacros, 1)
 				
 				finalFunction += \
 					("\t// %s shader part\n" % shaderRef.resource_path) + \
@@ -301,8 +314,8 @@ func bakeMainShader():
 		printerr("MultiShader isn't in a state that allow its baking.")
 		return
 	
-	# Make sure the statics are at their initial state
-	TokensHandler.resetStatics()
+	# Make sure the TokensHandler cache is in its initial state
+	resetTokenHandlerCache()
 	
 	# Parse each shader (Generate Tokens)
 	for shaderRef in _handledManagedShaders:
