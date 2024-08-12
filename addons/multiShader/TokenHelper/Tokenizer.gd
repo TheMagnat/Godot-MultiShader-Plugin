@@ -1,6 +1,6 @@
 class_name Token
 
-enum TokenTypes {EMPTY, FUNCTION, VARIABLE, UNIFORM, DEFINE_MACRO, INCLUDE_MACRO, DIRECTIVE}
+enum TokenTypes {EMPTY, FUNCTION, VARIABLE, UNIFORM, FOR_STATEMENT, IF_STATEMENT, DEFINE_MACRO, INCLUDE_MACRO, DIRECTIVE}
 
 var originalLine: String = ""
 
@@ -12,6 +12,10 @@ var type: String # Can be the type of the variable
 
 var startIndex: int
 var endIndex: int
+
+# Scope information
+var openScope: bool = false
+var closeScope: bool = false
 
 # Useful for functions
 var childs: Array[Token]
@@ -28,12 +32,20 @@ func _init(line: String, lineStartIndex: int, lineEndIndex: int) -> void:
 	startIndex = lineStartIndex
 	endIndex = lineEndIndex
 	
+	if line[-1] == "{":
+		openScope = true
+	elif line[-1] == "}":
+		closeScope = true
+	
 	if line.is_empty():
 		return
 	
 	# Lines to ignore
 	if line.begins_with("group_uniforms"):
 		return
+	
+	# Change tabs to space to prevent parsing errors
+	line = line.replace("\t", " ").replace("\n", " ")
 	
 	if line[0] == "#":
 		var editedLine = line.lstrip("#").strip_edges(true, false)
@@ -50,6 +62,14 @@ func _init(line: String, lineStartIndex: int, lineEndIndex: int) -> void:
 		elif type == "include":
 			tokenType = TokenTypes.INCLUDE_MACRO
 		
+		return
+	
+	if line.begins_with("if ") or line.begins_with("if("):
+		tokenType = TokenTypes.IF_STATEMENT
+		return
+		
+	if line.begins_with("for ") or line.begins_with("for("):
+		tokenType = TokenTypes.FOR_STATEMENT
 		return
 	
 	# Note: The order is important, the variable parser consider a function like a variable

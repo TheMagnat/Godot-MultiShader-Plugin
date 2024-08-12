@@ -1,5 +1,17 @@
 class_name TokensHandler
 
+const typeCantConflict: Array[Token.TokenTypes] = [
+	Token.TokenTypes.EMPTY,
+	#Token.TokenTypes.FUNCTION,
+	#Token.TokenTypes.VARIABLE,
+	#Token.TokenTypes.UNIFORM,
+	Token.TokenTypes.FOR_STATEMENT,
+	Token.TokenTypes.IF_STATEMENT,
+	#Token.TokenTypes.DEFINE_MACRO,
+	#Token.TokenTypes.INCLUDE_MACRO,
+	#Token.TokenTypes.DIRECTIVE
+]
+
 # Keep a reference to the MultiShaderMaterial to use the cache variables
 var multiShaderMaterial: MultiShaderMaterial
 
@@ -29,12 +41,13 @@ func _init(multiShaderMaterialParam: MultiShaderMaterial, originalShaderParam: S
 	
 	_initializeShaderCache()
 
+var inForLogic: bool = false
 func getString(token: Token, depthLevel: int, localScope: Array[Token], globalScope: Array[Token]) -> String:
 	"""
 	Convert a token to a String.
 	This function will also update conflicts array.
 	"""
-	if token.tokenType != Token.TokenTypes.EMPTY:
+	if token.tokenType not in typeCantConflict:
 		
 		for local in localScope:
 			if token.tokenName != local.tokenName:
@@ -51,14 +64,26 @@ func getString(token: Token, depthLevel: int, localScope: Array[Token], globalSc
 			
 			# TODO: Maybe update the token
 	
+	
+	# If for, activate the for logic.
+	# The for logic will skip end of line untile the end of the for is reached.
+	# It also skip the "tab" after the first token
+	var startForLogic = inForLogic
+	if token.tokenType == Token.TokenTypes.FOR_STATEMENT:
+		inForLogic = true
+	
+	if inForLogic:
+		if ")" in token.originalLine:
+			inForLogic = false
+	
 	if token.tokenType == Token.TokenTypes.DEFINE_MACRO:
 		if token.tokenName not in shaderMacros:
 			shaderMacros[token.tokenName] = token.tokenValue
 	
-	var res = "\t".repeat(depthLevel) + token.originalLine + "\n"
+	var res = "\t".repeat(depthLevel * int(not startForLogic)) + token.originalLine + ("\n" if not inForLogic else " ")
 	
-	# Function logic
-	if token.tokenType == Token.TokenTypes.FUNCTION:
+	# Scope logic (can be function or if and for for example)
+	if token.childs:
 		var childsTokensHandler := TokensHandler.new(multiShaderMaterial, originalShader, token.childs, shaderMacros, depthLevel + 1)
 		return res + \
 			childsTokensHandler.tokenListToString() + \
@@ -79,7 +104,6 @@ func getString(token: Token, depthLevel: int, localScope: Array[Token], globalSc
 
 
 func _tokenListToString(tokenList: Array[Token], depthLevel: int, localScope: Array[Token], globalScope: Array[Token]) -> String:
-	
 	var res: String = ""
 	for token in tokenList:
 		res += getString(token, depthLevel, localScope, globalScope)
