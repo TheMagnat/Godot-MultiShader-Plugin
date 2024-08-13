@@ -105,8 +105,8 @@ func verifyManagedShaders():
 	
 	# All shaders look valid, connect the changed event on them
 	for shaderRef in _handledManagedShaders:
-		if not shaderRef.changed.is_connected(bakeMainShader):
-			shaderRef.changed.connect(bakeMainShader)
+		if not shaderRef.changed.is_connected(verifyManagedShaders):
+			shaderRef.changed.connect(verifyManagedShaders)
 	
 	_coherentManagedShaders = true
 	
